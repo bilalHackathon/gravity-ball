@@ -1,0 +1,705 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>build and explore</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+//define variables here
+//variable for gravity
+var gravityPosition;
+//variables for moving right
+var moveRightX = 0;
+var moveRightY = 0;
+var rightAcceleration = 40;
+var rightForcePosition;
+//variables for moving left
+var moveLeftX = 0;
+var moveLeftY = 0;
+var leftAcceleration = 40;
+var leftForcePosition;
+//variables for jumping
+var jumpForcePosition;
+var jumpX = 0;
+var jumpY = 0;
+var jumpTimeout = 0;
+//variables that help worldbuilding
+var X;
+var Y;
+//variable to count every second
+var everySecond = 0;
+//variable for health
+var health = 200;
+//variables for the direction of the little ball
+var northWest;
+var northWestGo = false;
+var northEast;
+var northEastGo = false;
+var southWest;
+var southWestGo = false;
+var southEast;
+var southEastGo = false;
+var north;
+var northGo = false;
+var south;
+var southGo = false;
+var east;
+var eastGo = false;
+var west;
+var westGo = false;
+//variables for the ball to move
+var up = false;
+var left = false;
+var right = false;
+
+class Game extends Phaser.Scene
+{
+
+constructor () {
+    super({
+        key: 'Game',
+        physics: {
+            matter: {
+                debug: true,
+                gravity: { y: 0 }
+            }
+        }
+    });
+}
+
+preload()
+{
+    this.load.image('circle', 'circle.png');
+    this.load.image('mountains', 'mountains.png');
+    this.load.image('clouds', 'clouds.png');
+    this.load.image('trees', 'trees.png');
+    this.load.image('ground1', 'ground1.png');
+    this.load.image('ground2', 'ground2.png');
+    this.load.image('ground3', 'ground3.png');
+    this.load.image('ground4', 'ground4.png');
+    this.load.image('ground5', 'ground5.png');
+    this.load.image('littleBall', 'littleBall.png');
+    this.load.bitmapFont('pixelfont', 'font.png', 'font.xml');
+}
+
+create()
+{
+    //creating the parallax background
+    this.add.image(515, 120, 'clouds').setScrollFactor(0.15);
+    this.add.image(515 + 1000, 120, 'clouds').setScrollFactor(0.15);
+    this.add.image(515 - 1000, 120, 'clouds').setScrollFactor(0.15);
+    this.add.image(515, 120, 'mountains').setScale(0.5).setScrollFactor(0.2);
+    this.add.image(515 + 1000, 120, 'mountains').setScale(0.5).setScrollFactor(0.2).setFlipX(true);
+    this.add.image(515 - 1000, 120, 'mountains').setScale(0.5).setScrollFactor(0.2).setFlipX(true);
+    this.add.image(515, 120 + 1000, 'mountains').setScale(0.5).setScrollFactor(0.2).setFlipY(true);
+    this.add.image(515 + 1000, 120 + 1000, 'mountains').setScale(0.5).setScrollFactor(0.2).setFlipY(true);
+    this.add.image(515 - 1000, 120 + 1000, 'mountains').setScale(0.5).setScrollFactor(0.2).setFlipY(true);
+    this.add.image(515, 0, 'trees').setScrollFactor(0.3).setScale(3);
+    this.add.image(515 + 1000, 0, 'trees').setScrollFactor(0.3).setScale(3);
+    this.add.image(515 - 1000, 0, 'trees').setScrollFactor(0.3).setScale(3);
+    this.add.image(515, 1500, 'trees').setScrollFactor(0.3).setScale(3).setFlipY(true);
+    this.add.image(515 + 1000, 1500, 'trees').setScrollFactor(0.3).setScale(3).setFlipY(true);
+    this.add.image(515 - 1000, 1500, 'trees').setScrollFactor(0.3).setScale(3).setFlipY(true);
+    //adding the ground
+    this.add.image(window.innerWidth*515/1031, window.innerHeight*120/580, 'ground1').setDisplaySize(window.innerWidth*2062/1031, window.innerHeight*1160/580);
+    this.add.image(window.innerWidth*515/1031, window.innerHeight*(120 - 580*2)/580, 'ground2').setDisplaySize(window.innerWidth*2062/1031, window.innerHeight*1162/580);
+    this.add.image(window.innerWidth*515/1031, window.innerHeight*(120 - 580*4)/580, 'ground3').setDisplaySize(window.innerWidth*2062/1031, window.innerHeight*1162/580);
+    this.add.image(window.innerWidth*(515 + 1031*2)/1031, window.innerHeight*(120 - 580*2)/580, 'ground4').setDisplaySize(window.innerWidth*2062/1031, window.innerHeight*1162/580);
+    this.add.image(window.innerWidth*(515 + 1031*2)/1031, window.innerHeight*(120 - 580*4)/580, 'ground5').setDisplaySize(window.innerWidth*2062/1031, window.innerHeight*1162/580);
+    this.add.image(window.innerWidth*1537/1031, window.innerHeight*-476/580, ' ').setAngle(125).setDisplaySize(window.innerWidth*100/1031, window.innerHeight*50/580).setTintFill(0xec9d75);
+
+    this.ball = this.matter.add.sprite(window.innerWidth*515/1031, window.innerHeight*290/580, 'circle', null).setDisplaySize(window.innerHeight*50/580, window.innerHeight*50/580);
+    this.ball.setCircle(window.innerHeight*25/580);
+    this.rectangle = this.add.image(515, 290, ' ').setDisplaySize(200, 200).setAngle(45).setAlpha(0);
+    //creating the function to create the this.ground
+    function groundCreate (x, y, image, angle, name, Width, Height, place, cameraMove, loopDeLoop, loopDeLoopAngle)
+    {
+        name = place.matter.add.sprite(window.innerWidth*x/1031, window.innerHeight*y/580, image, null).setDisplaySize(Width, Height).setAlpha(0);
+        name.setBody({
+            type: 'rectangle',
+            width: window.innerWidth*Width/1031,
+            height: window.innerHeight*Height/580
+        });
+        name.setAngle(angle);
+        name.setStatic(true);
+        
+        //collisions for ground and ball
+        place.matter.world.on('collisionactive', function(event) {
+            event.pairs.forEach(function(pair) {
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+
+                // You can add conditions here to check for specific collisions
+                if (bodyA === name.body || bodyB === name.body) 
+                {
+                    if (bodyA === place.ball.body || bodyB === place.ball.body)
+                    {
+                        place.littleRect1.angle = name.angle;
+                        place.littleRect2.angle = name.angle + 45;
+                        place.rectangle.angle = name.angle + 45;
+
+                        if (cameraMove != false)
+                        {
+                            // Target rotation in radians (180 degrees)
+                            const targetRotation = -name.angle * Math.PI/180;
+
+                            // Get the current rotation of the camera
+                            const currentRotation = place.cameras.main.rotation;
+
+                            // Calculate the shortest path for rotation
+                            const shortestPath = Phaser.Math.Angle.Wrap(targetRotation - currentRotation);
+
+                            place.tweens.add({
+                                targets: place.cameras.main,
+                                rotation: currentRotation + shortestPath,
+                                duration: 500,
+                                shortestPath: true
+                            });
+                        }
+                        
+                        //allowing the player to jump
+                        if (place.cursors.up.isDown || up == true)
+                        {
+                            jumpX = (jumpForcePosition.x - place.ball.x)/20;
+                            jumpY = (jumpForcePosition.y - place.ball.y)/20;
+                            jumpTimeout = 60;
+                            up = false;
+                        }
+                    }
+                }
+            });
+            //rendering the ground
+            function renderGround()
+            {
+                name.willRender(place.cameras.main);
+
+                //making the loop de loop bricks
+                if (loopDeLoop == true)
+                {
+                    if (place.rectangle.angle + 45 == loopDeLoopAngle || place.rectangle.angle == name.angle + 45)
+                    {
+                        name.x = x;
+                    } else {
+                        name.x = place.ball.x - 400;
+                    }
+                }
+            }
+            window.setInterval(renderGround, 1000/60);
+        });
+    }
+    //ugh so many grounds to create
+    groundCreate(300, 450, ' ', 20, this.ground, 600, 50, this);
+    groundCreate(250, 205, ' ', 200, this.ground, 300, 50, this);
+    groundCreate(700, 500, ' ', 0, this.ground, 700, 50, this);
+    groundCreate(600, 260, ' ', 180, this.ground, 400, 50, this);
+    groundCreate(0, 300, ' ', 40, this.ground, 300, 50, this);
+    groundCreate(90, 132, ' ', 220, this.ground, 100, 50, this);
+    groundCreate(-200, 0, ' ', 60, this.ground, 600, 50, this);
+    groundCreate(-85, -145, ' ', 240, this.ground, 600, 50, this);
+    groundCreate(-375, -500, ' ', 80, this.ground, 600, 50, this);
+    groundCreate(-250, -500, ' ', 260, this.ground, 175, 50, this);
+    groundCreate(-390, -1000, ' ', 100, this.ground, 600, 50, this);
+    groundCreate(-215, -885, ' ', 280, this.ground, 600, 50, this);
+    groundCreate(-200, -1500, ' ', 120, this.ground, 600, 50, this);
+    groundCreate(-15, -1425, ' ', 300, this.ground, 600, 50, this);
+    groundCreate(140, -1900, ' ', 140, this.ground, 600, 50, this);
+    groundCreate(275, -1800, ' ', 320, this.ground, 400, 50, this);
+    groundCreate(600, -2150, ' ', 160, this.ground, 600, 50, this);
+    groundCreate(600, -1990, ' ', 340, this.ground, 400, 50, this);
+    groundCreate(1100, -2250, ' ', 180, this.ground, 600, 50, this);
+    groundCreate(1000, -2060, ' ', 0, this.ground, 400, 50, this);
+    groundCreate(1400, -2250, ' ', 200, this.ground, 200, 50, this);
+    groundCreate(1300, -2025, ' ', 20, this.ground, 200, 50, this);
+    groundCreate(1550, -2170, ' ', 220, this.ground, 200, 50, this);
+    groundCreate(1430, -1960, ' ', 40, this.ground, 100, 50, this);
+    groundCreate(1690, -2000, ' ', 240, this.ground, 250, 50, this);
+    groundCreate(1500, -1880, ' ', 60, this.ground, 100, 50, this);
+    groundCreate(1750, -1450, ' ', 270, this.ground, 850, 50, this);
+    groundCreate(1520, -1420, ' ', 90, this.ground, 850, 54, this);
+    groundCreate(1650, -750, ' ', 290, this.ground, 600, 50, this);
+    groundCreate(1425, -750, ' ', 110, this.ground, 525, 60, this);
+    groundCreate(1475, -400, ' ', 310, this.ground, 200, 50, this);
+    groundCreate(1207, -351, ' ', 130, this.ground, 400, 50, this)
+    this.add.image(1207, -351, ' ').setAngle(130).setDisplaySize(400, 50).setTintFill(0xec9d75);
+    groundCreate(1380, -220, ' ', 290, this.ground, 250, 50, this);
+    groundCreate(1350, 0, ' ', 270, this.ground, 250, 60, this);
+    groundCreate(1180, 300, ' ', 310, this.ground, 600, 50, this);
+    groundCreate(1350, 85, ' ', 290, this.ground, 250, 60, this);
+    groundCreate(990, 475, ' ', 340, this.ground, 100, 40, this);
+    groundCreate(827, 246, ' ', 160, this.ground, 100, 50, this);
+    groundCreate(886, 212, ' ', 130, this.ground, 50, 50, this);
+    groundCreate(913, 170, ' ', 110, this.ground, 50, 50, this);
+    groundCreate(925, -69, ' ', 90, this.ground, 400, 50, this);
+    groundCreate(876, -350, ' ', 60, this.ground, 200, 50, this);
+    groundCreate(822, -553, ' ', 90, this.ground, 200, 50, this);
+    groundCreate(839, -702, ' ', 110, this.ground, 100, 50, this, false, true, 180);
+    groundCreate(892, -795, ' ', 130, this.ground, 100, 50, this, false, true, 200);
+    groundCreate(975, -866, ' ', 150, this.ground, 100, 50, this, false);
+    groundCreate(1078, -901, ' ', 170, this.ground, 100, 50, this, false);
+    groundCreate(1186, -903, ' ', 190, this.ground, 100, 50, this, false);
+    groundCreate(1284, -867, ' ', 210, this.ground, 100, 50, this, false);
+    groundCreate(1357, -797, ' ', 240, this.ground, 100, 50, this, false);
+    groundCreate(1385, -697, ' ', 270, this.ground, 100, 50, this, false);
+    groundCreate(1360, -639, ' ', 300, this.ground, 100, 50, this, false);
+    groundCreate(1289, -552, ' ', 320, this.ground, 100, 50, this, false);
+    groundCreate(1193, -491, ' ', 340, this.ground, 100, 50, this, false);
+    groundCreate(1081, -472, ' ', 360, this.ground, 100, 50, this, false);
+    groundCreate(981, -535, ' ', 40, this.ground, 190, 50, this, false);
+    groundCreate(839, -702, ' ', 60, this.ground, 250, 50, this, false, true, 130);
+    groundCreate(689, -883, ' ', 40, this.ground, 200, 50, this);
+    groundCreate(1380, -680, ' ', 280, this.ground, 50, 50, this, false);
+    groundCreate(616, -1253, ' ', 90, this.ground, 600, 50, this);
+    groundCreate(627, -954, ' ', 70, this.ground, 50, 50, this);
+    groundCreate(594, -1607, ' ', 70, this.ground, 100, 50, this);
+    groundCreate(553, -1678, ' ', 45, this.ground, 50, 50, this);
+    groundCreate(503, -1711, ' ', 20, this.ground, 50, 50, this);
+    groundCreate(440, -1717, ' ', 350, this.ground, 50, 50, this);
+    groundCreate(384, -1690, ' ', 320, this.ground, 50, 50, this);
+    groundCreate(345, -1644, ' ', 300, this.ground, 50, 50, this);
+    groundCreate(335, -1253, ' ', 270, this.ground, 700, 60, this);
+    groundCreate(240, -736, ' ', 300, this.ground, 400, 60, this);
+
+    //creating the little ball
+    this.littleBall = this.matter.add.sprite(515, 290, 'littleBall').setDisplaySize(50, 50).setCircle(15);
+
+    //creating the rectangles for the direction of the littleBall
+    this.littleRect1 = this.add.image(515, 290, ' ').setDisplaySize(150, 150).setAlpha(0);
+    this.littleRect2 = this.add.image(515, 290, ' ').setDisplaySize(150, 150).setAlpha(0);
+
+    //creating the enemies
+    //creating the snakes
+    this.snakes = this.matter.add.sprite(1263, -400, 'littleBall').setTint(0xff0000).setScale(0.5);
+    this.snake2 = this.matter.add.sprite(283, -2000, 'littleBall').setTint(0xff0000).setScale(0.5);
+    function snakeCollisions(whichSnake, place)
+    {
+        place.matter.world.on('collisionactive', function(event)
+        {
+            event.pairs.forEach(function(pair) 
+            {
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+                if (bodyA == whichSnake.body || bodyB == whichSnake.body)
+                {
+                    if (bodyA == place.ball.body || bodyB == place.ball.body)
+                    {
+                        whichSnake.setVisible(false);
+                        whichSnake.setStatic(true);
+                        whichSnake.x = 10000;
+                        whichSnake.y = -100;
+                        health -= 20;
+                    }
+                    if (bodyA == place.littleBall.body || bodyB == place.littleBall.body)
+                    {
+                        whichSnake.setVisible(false);
+                        whichSnake.setStatic(true);
+                        whichSnake.x = 10000;
+                        whichSnake.y = -100;
+                    }
+                }
+            });
+        });
+    }
+    snakeCollisions(this.snakes, this);
+    snakeCollisions(this.snake2, this);
+    //creating the lasers/cows
+    function laserCollisions(whichCow, x, y, Width, Height, place)
+    {
+        whichCow = place.matter.add.sprite(x, y, ' ').setDisplaySize(Width, Height).setTintFill(0xff0000);
+        whichCow.setBody({
+            type: 'rectangle',
+            width: Width,
+            height: Height
+        })
+        whichCow.setStatic(true);
+        place.matter.world.on('collisionactive', function(event)
+        {
+            event.pairs.forEach(function(pair) 
+            {
+                const bodyA = pair.bodyA;
+                const bodyB = pair.bodyB;
+                if (bodyA == place.ball.body || bodyB == place.ball.body)
+                {
+                    if (bodyA == whichCow.body || bodyB == whichCow.body)
+                    {
+                        health -= 1;
+                    }
+                }
+            });
+        });
+    }
+    laserCollisions(this.laser1, 800, 380, 50, 200, this);
+    laserCollisions(this.laser2, 1566, -1648, 140, 50, this);
+    laserCollisions(this.laser3, 1700, -1448, 140, 50, this);
+    laserCollisions(this.laser4, 1566, -1248, 140, 50, this);
+    laserCollisions(this.laser5, 1700, -1048, 140, 50, this);
+
+    //creating the ui
+    this.scene.launch('UI');
+}
+
+update()
+{
+    this.cursors = this.input.keyboard.createCursorKeys(); 
+
+    //making the little ball reset when off screen
+    if (this.littleBall.x > this.ball.x + 1100 || this.littleBall.x < this.ball.x - 1100 || this.littleBall.y > this.ball.y + 1100 || this.littleBall.y < this.ball.y - 1100)
+    {
+        this.littleBall.x = this.ball.x;
+        this.littleBall.y = this.ball.y;
+    }
+
+    //updating the snakes
+    function snakeDo(whichSnake, place)
+    {
+        if (whichSnake.x > place.ball.x - 500 && whichSnake.x < place.ball.x + 500 && whichSnake.y > place.ball.y - 500 && whichSnake.y < place.ball.y + 500)
+        {
+            whichSnake.setVelocityX((place.ball.x - whichSnake.x)/40);
+            whichSnake.setVelocityY((place.ball.y - whichSnake.y)/40);
+        }
+    }
+    snakeDo(this.snakes, this);
+    snakeDo(this.snake2, this);
+
+    //making the ball stop jumping
+    if (jumpTimeout > 0)
+    {
+        jumpTimeout -= 1;
+    }
+    if (jumpTimeout == 0)
+    {
+        jumpX = 0;
+        jumpY = 0;
+    }
+
+    //making the camera move just right
+    this.cameras.main.startFollow(this.ball);
+
+    //creating the basics of the this.ball sprite (including movement and the like)
+    //updating the position of all the stuff
+    //position of the downward force of gravity
+    this.rectangle.x = this.ball.x;
+    this.rectangle.y = this.ball.y;
+    gravityPosition = this.rectangle.getBottomRight();
+    //position of the force of the ball moving right
+    rightForcePosition = this.rectangle.getTopRight();
+    //position of the force of the ball moving left
+    leftForcePosition = this.rectangle.getBottomLeft();
+    //position of the force moving the ball up
+    jumpForcePosition = this.rectangle.getTopLeft();
+
+    //creating the basics of the littleBall
+    this.littleRect1.x = this.littleBall.x;
+    this.littleRect1.y = this.littleBall.y;
+    northWest = this.littleRect1.getTopLeft();
+    northEast = this.littleRect1.getTopRight();
+    southEast = this.littleRect1.getBottomRight();
+    southWest = this.littleRect1.getBottomLeft();
+
+    this.littleRect2.x = this.littleBall.x;
+    this.littleRect2.y = this.littleBall.y;
+    north = this.littleRect2.getTopLeft();
+    east = this.littleRect2.getTopRight();
+    south = this.littleRect2.getBottomRight();
+    west = this.littleRect2.getBottomLeft();
+
+    //more little ball stuff
+    //little ball moving toward the ball
+    if (Math.abs(this.littleBall.body.velocity.x) < 3 && Math.abs(this.littleBall.body.velocity.y) < 3)
+    {
+        this.littleBall.setVelocityX((this.littleBall.body.velocity.x + this.ball.x - this.littleBall.x)/40);
+        this.littleBall.setVelocityY((this.littleBall.body.velocity.y + this.ball.y - this.littleBall.y)/40);
+    } else {
+        this.littleBall.rotation += 0.1;
+    }
+    if (this.littleBall.x > this.ball.x - 45 && this.littleBall.x < this.ball.x + 45 && this.littleBall.y > this.ball.y - 45 && this.littleBall.y < this.ball.y + 45)
+    {
+        this.littleBall.setVelocityX(0);
+        this.littleBall.setVelocityY(0);
+    }
+
+    if (everySecond == 0)
+    {
+        //making the little ball go where the pointer tells it to
+        this.input.on('pointerdown', function()
+        {
+            X = game.input.activePointer.x + this.cameras.main.scrollX;
+            Y = game.input.activePointer.y + this.cameras.main.scrollY;
+        }, this)
+    }
+    if (northWestGo == true)
+    {
+        this.littleBall.setVelocityX((northWest.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((northWest.y - this.littleBall.y)/10);
+        northWestGo = false;
+    }
+    if (northEastGo == true)
+    {
+        this.littleBall.setVelocityX((northEast.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((northEast.y - this.littleBall.y)/10);
+        northEastGo = false;
+    }
+    if (southWestGo == true)
+    {
+        this.littleBall.setVelocityX((southWest.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((southWest.y - this.littleBall.y)/10);
+        southWestGo = false;
+    }
+    if (southEastGo == true)
+    {
+        this.littleBall.setVelocityX((southEast.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((southEast.y - this.littleBall.y)/10);
+        southEastGo = false;
+    }
+    if (northGo == true)
+    {
+        this.littleBall.setVelocityX((north.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((north.y - this.littleBall.y)/10);
+        northGo = false;
+    }
+    if (eastGo == true)
+    {
+        this.littleBall.setVelocityX((east.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((east.y - this.littleBall.y)/10);
+        eastGo = false;
+    }
+    if (westGo == true)
+    {
+        this.littleBall.setVelocityX((west.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((west.y - this.littleBall.y)/10);
+        westGo = false;
+    }
+    if (southGo == true)
+    {
+        this.littleBall.setVelocityX((south.x - this.littleBall.x)/10);
+        this.littleBall.setVelocityY((south.y - this.littleBall.y)/10);
+        southGo = false;
+    }
+
+    //making the every second variable work
+    if (everySecond < 60)
+    {
+        everySecond += 1;
+    } else {
+        everySecond = 1;
+    }
+
+    //calculating the movement of the ball
+
+    //making the ball move right
+    if (this.cursors.right.isDown || right == true)
+    {
+        rightAcceleration -= 2;
+        if (rightAcceleration < 20)
+        {
+            rightAcceleration = 20;
+        }
+        moveRightX = (rightForcePosition.x - this.ball.x)/rightAcceleration;
+        moveRightY = (rightForcePosition.y - this.ball.y)/rightAcceleration;
+    }
+    if (this.cursors.right.isUp || right == false)
+    {
+        rightAcceleration += 2;
+        if (moveRightX > 0)
+        {
+            moveRightX -= 0.1;
+        } else {
+            moveRightX += 0.1;
+        }
+        if (moveRightX > -2 && moveRightX < 2)
+        {
+            moveRightX = 0;
+        }
+
+        if (moveRightY > 0)
+        {
+            moveRightY -= 0.1;
+        } else {
+            moveRightY += 0.1;
+        }
+        if (moveRightY > -2 && moveRightY < 2)
+        {
+            moveRightY = 0;
+        }
+    }
+    if (rightAcceleration > 40)
+    {
+        rightAcceleration = 40;
+    }
+    
+    //making the ball move left
+    if (this.cursors.left.isDown || left == true)
+    {
+        leftAcceleration -= 2;
+        if (leftAcceleration < 20)
+        {
+            leftAcceleration = 20;
+        }
+        moveLeftX = (leftForcePosition.x - this.ball.x)/leftAcceleration;
+        moveLeftY = (leftForcePosition.y - this.ball.y)/leftAcceleration;
+    }
+    if (this.cursors.left.isUp || left == false)
+    {
+        leftAcceleration += 2;
+        if (moveLeftX > 0)
+        {
+            moveLeftX -= 0.1;
+        } else {
+            moveLeftX += 0.1;
+        }
+        if (moveLeftX > -2 && moveLeftX < 2)
+        {
+            moveLeftX = 0;
+        }
+
+        if (moveLeftY > 0)
+        {
+            moveLeftY -= 0.1;
+        } else {
+            moveLeftY += 0.1;
+        }
+        if (moveLeftY > -2 && moveLeftY < 2)
+        {
+            moveLeftY = 0;
+        }
+    }
+    if (leftAcceleration > 40)
+    {
+        leftAcceleration = 40;
+    }
+
+    //move zone one
+    if (this.ball.x < 1350 && this.ball.y < -430 && this.ball.x > 816 && this.ball.y > -954 && this.rectangle.angle != 175)
+    {
+        moveLeftX = (leftForcePosition.x - this.ball.x)/15;
+        moveLeftY = (leftForcePosition.y - this.ball.y)/15;
+        moveRightX = 0;
+        moveRightY = 0;
+        jumpX = 0;
+        jumpY = 0;
+    }
+    this.moveZone1 = this.add.image(1350 - (1350 - 816)/2, -954 - (-954 + 430)/2, ' ').setDisplaySize(1350 - 816, -954 + 430).setAlpha(0.3).setTintFill(0x5D3FD3);
+    //combining all the forces on the ball plus gravity
+    this.ball.setVelocityX(jumpX + moveLeftX + moveRightX + (gravityPosition.x - this.ball.x)/40);
+    this.ball.setVelocityY(jumpY + moveLeftY + moveRightY + (gravityPosition.y - this.ball.y)/40);
+}
+}
+
+class UI extends Phaser.Scene 
+{
+    constructor () {
+        super({
+            key: 'UI'
+        });
+    }
+
+    preload()
+    {
+        this.load.bitmapFont('pixelfont', 'font.png', 'font.xml');
+    }
+
+    create()
+    {
+        //making the ui for little ball
+        this.northArrow = this.add.image(900, 400, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.northArrow.on('pointerover', function (pointer) 
+        {
+            northGo = true;
+        });
+        this.southArrow = this.add.image(900, 500, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.southArrow.on('pointerover', function (pointer) 
+        {
+            southGo = true;
+        });
+        this.eastArrow = this.add.image(950, 450, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.eastArrow.on('pointerover', function (pointer) 
+        {
+            eastGo = true;
+        });
+        this.westArrow = this.add.image(850, 450, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.westArrow.on('pointerover', function (pointer) 
+        {
+            westGo = true;
+        });
+        this.northEastArrow = this.add.image(950, 400, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.northEastArrow.on('pointerover', function (pointer) 
+        {
+            northEastGo = true;
+        });
+        this.northWestArrow = this.add.image(850, 400, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.northWestArrow.on('pointerover', function (pointer) 
+        {
+            northWestGo = true;
+        });
+        this.southEastArrow = this.add.image(950, 500, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.southEastArrow.on('pointerover', function (pointer) 
+        {
+            southEastGo = true;
+        });
+        this.southWestArrow = this.add.image(850, 500, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.southWestArrow.on('pointerover', function (pointer) 
+        {
+            southWestGo = true;
+        });
+
+        //making the ui for the big ball
+        //the jump button
+        this.jumpButton = this.add.image(900, 450, ' ').setDisplaySize(50, 50).setInteractive({cursors: 'pointer'});
+        this.jumpButton.on('pointerover', function (pointer)
+        {
+            up = true;  
+        });
+    }
+
+    update()
+    {
+        //creating the ui for the big ball
+        //creating the right button
+        this.add.image(200, 450, ' ').setDisplaySize(50, 50);
+        if (game.input.activePointer.x < 200 + 25 && game.input.activePointer.x > 200 - 25 && game.input.activePointer.y < 450 + 25 && game.input.activePointer.y > 450 - 25)
+        {
+            right = true;
+        } else {
+            right = false;
+        }
+        //creating the left button
+        this.add.image(150, 450, ' ').setDisplaySize(50, 50);
+        if (game.input.activePointer.x < 150 + 25 && game.input.activePointer.x > 150 - 25 && game.input.activePointer.y < 450 + 25 && game.input.activePointer.y > 450 - 25)
+        {
+            left = true;
+        } else {
+            left = false;
+        }
+
+        //making the health bar go down when health decreases
+        if (everySecond == 0)
+        {
+            this.healthText = this.add.bitmapText(140, 50, 'pixelfont', 'HEALTH:', 25).setOrigin(0.5).setTint(0x000000);
+            this.healthBar = this.add.image(300, 50, ' ').setTintFill(0xff0000).setDisplaySize(200, 5);
+        }
+        this.healthBar.setDisplaySize(health, 25);
+    }
+}
+
+var config = {
+    type: Phaser.WEBGL,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    fps: 60,
+    backgroundColor: 0xDAB1DA,
+    scene: [ Game, UI ]
+}
+
+var game = new Phaser.Game(config);
+
+</script>
+
+</body>
+</html>
